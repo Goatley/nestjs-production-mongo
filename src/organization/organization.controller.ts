@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express'
-import { OrganizationService, OrganizationUserService, OrganizationAdminService } from './organization.service';
+import { OrganizationService } from './services/organization.service';
+import { OrganizationUserService } from './services/organizationUser.service';
+import { OrganizationAdminService } from './services/organizationAdmin.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { UpdateOrganizationUsersDto } from './dto/update-organization-users.dto';
