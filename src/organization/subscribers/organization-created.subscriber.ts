@@ -5,15 +5,11 @@ import { IOrganizationEvent } from '../interfaces/organization.interface';
 
 @Injectable()
 export class OrganizationEventListener {
-    constructor(
-        private readonly logger: Logger,
-    ) {}
+	constructor(private readonly logger: Logger) {}
 
-    // @OnEvent(OrganizationEvents.created)
+	// @OnEvent(OrganizationEvents.created)
 
-    // @onEvent(OrganizationEvents.updated)
+	// @onEvent(OrganizationEvents.updated)
 
-    // @OnEvent(OrganizationEvents.deleted)
-
-    
+	// @OnEvent(OrganizationEvents.deleted)
 }

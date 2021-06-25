@@ -1,11 +1,14 @@
-import {  IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateOrganizationDto {
-    @IsNotEmpty()
-    @IsString()
-    name: string;
+	@ApiProperty()
+	@IsNotEmpty()
+	@IsString()
+	name: string;
 
-    @IsOptional()
-    @IsString()
-    description?: string;
+	@ApiPropertyOptional()
+	@IsOptional()
+	@IsString()
+	description?: string;
 }

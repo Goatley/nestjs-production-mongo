@@ -28,6 +28,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^7.1.5",
     "@nestjs/platform-express": "^7.6.15",
+    "@nestjs/swagger": "^4.8.1",
     "class-validator": "^0.13.1",
     "class-validator-mongo-object-id": "^1.2.0",
     "jwks-rsa": "^2.0.3",
@@ -38,10 +39,11 @@
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^6.6.6",
+    "swagger-ui-express": "^4.1.6",
     "winston": "^3.3.3"
   },
   "devDependencies": {
-    "@darraghor/eslint-plugin-nestjs-typed": "^1.7.0",
+    "@darraghor/eslint-plugin-nestjs-typed": "^1.9.0",
     "@nestjs/cli": "^7.6.0",
     "@nestjs/schematics": "^7.3.0",
     "@nestjs/testing": "^7.6.18",

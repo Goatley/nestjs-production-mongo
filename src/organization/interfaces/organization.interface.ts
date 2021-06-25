@@ -1,37 +1,37 @@
-import { Document, Types } from "mongoose";
-import { IUserToken } from "src/user/interfaces/user.interface";
+import { Document, Types } from 'mongoose';
+import { IUserToken } from 'src/user/interfaces/user.interface';
 
 export interface IOrganization extends Document {
-    name: string;
-    description?: string;
-    users: Array<Types.ObjectId>;
-    admins: Array<Types.ObjectId>;
-    projects: Array<Types.ObjectId>;
-    user_groups: Array<Types.ObjectId>;
-    updatedBy: Types.ObjectId;
-    createdBy: Types.ObjectId;
+	name: string;
+	description?: string;
+	users: Array<Types.ObjectId>;
+	admins: Array<Types.ObjectId>;
+	projects: Array<Types.ObjectId>;
+	user_groups: Array<Types.ObjectId>;
+	updatedBy: Types.ObjectId;
+	createdBy: Types.ObjectId;
 }
 
 //event payload when an org is created/modified
 export interface IOrganizationEvent {
-    organization: IOrganization,
-    user: IUserToken
+	organization: IOrganization;
+	user: IUserToken;
 }
 
 //payload for when organization user management happens
 export interface IOrganizationUserUpdatedEvent extends IOrganizationEvent {
-    updatedUser: string,
+	updatedUser: string;
 }
 
 export interface IOrganizationUserDeletedEvent extends IOrganizationEvent {
-    deletedUser: string,
+	deletedUser: string;
 }
 
 //payload for when organization admin management happens
 export interface IOrganizationAdminUpdatedEvent extends IOrganizationEvent {
-    updatedAdmin: string,
+	updatedAdmin: string;
 }
 
 export interface IOrganizationAdminDeletedEvent extends IOrganizationEvent {
-    deletedAdmin: string,
+	deletedAdmin: string;
 }

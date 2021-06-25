@@ -7,29 +7,29 @@ import * as mongoose from 'mongoose';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
-    super({
-      secretOrKeyProvider: passportJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `${process.env.AUTH0_ISSUER_URL}.well-known/jwks.json`,
-      }),
+	constructor() {
+		super({
+			secretOrKeyProvider: passportJwtSecret({
+				cache: true,
+				rateLimit: true,
+				jwksRequestsPerMinute: 5,
+				jwksUri: `${process.env.AUTH0_ISSUER_URL}.well-known/jwks.json`,
+			}),
 
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      audience: process.env.AUTH0_AUDIENCE,
-      issuer: `${process.env.AUTH0_ISSUER_URL}`,
-      algorithms: ['RS256'],
-    });
-  }
+			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+			audience: process.env.AUTH0_AUDIENCE,
+			issuer: `${process.env.AUTH0_ISSUER_URL}`,
+			algorithms: ['RS256'],
+		});
+	}
 
-  validate(payload: unknown): unknown {
-    const user: IUserToken = {
-      _id: mongoose.Types.ObjectId(payload['sub'].substr(6)),
-      email: payload['https://goatit.tech/email'],
-      permissions: payload['permissions'],
-    };
+	validate(payload: unknown): unknown {
+		const user: IUserToken = {
+			_id: mongoose.Types.ObjectId(payload['sub'].substr(6)),
+			email: payload['https://goatit.tech/email'],
+			permissions: payload['permissions'],
+		};
 
-    return user;
-  }
+		return user;
+	}
 }

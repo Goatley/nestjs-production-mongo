@@ -7,33 +7,34 @@ import { InjectedConstants } from 'src/config/constants.config';
 
 @Injectable()
 export class UserService {
-  constructor(@Inject(InjectedConstants.user_model) private userModel: Model<IUser>,) {}
+	constructor(
+		@Inject(InjectedConstants.user_model) private userModel: Model<IUser>,
+	) {}
 
-  async create(createUserDto: CreateUserDto) {
+	async create(createUserDto: CreateUserDto) {
+		//first create our data access object
+		//convert auth0 unique ID to mongoDB objectId type
+		const createUserDao = {
+			_id: Types.ObjectId(createUserDto._id.substr(6)),
+			email: createUserDto.email,
+		};
 
-    //first create our data access object
-    //convert auth0 unique ID to mongoDB objectId type
-    const createUserDao = {
-      _id: Types.ObjectId(createUserDto._id.substr(6)),
-      email: createUserDto.email
-    }
+		return await this.userModel.create(createUserDao);
+	}
 
-    return await this.userModel.create(createUserDao);
-  }
+	findAll() {
+		return `This action returns all user`;
+	}
 
-  findAll() {
-    return `This action returns all user`;
-  }
+	findOne(id: string) {
+		return `looking for user ${id}`;
+	}
 
-  findOne(id: string) {
-    return `looking for user ${id}`;
-  }
+	update(id: number, updateUserDto: UpdateUserDto) {
+		return `This action updates a #${id} user`;
+	}
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
+	remove(id: number) {
+		return `This action removes a #${id} user`;
+	}
 }
