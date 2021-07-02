@@ -3,11 +3,11 @@ import { OrganizationAdminController } from '../../controllers/organization-admi
 import { OrganizationAdminService } from '../../services/organization-admin.service';
 import { OrganizationAdminServiceStub } from '../stubs/services.stub';
 import {
+	mockOrganization,
 	mockUserToken,
 	mockAdminToken,
 	mockNonAuthUserToken,
-} from '../mocks/users.mocks';
-import { mockOrganization } from '../mocks/organization.mocks';
+} from '../mocks/organization.mocks';
 
 describe('The OrganizationController ', () => {
 	//test each of our controllers

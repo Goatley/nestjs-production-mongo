@@ -13,6 +13,7 @@ import { OrganizationPermissions } from '../permissions/organization.permissions
 import { Action } from '../../permissions/actions';
 import {
 	IOrganization,
+	IOrganizationDocument,
 	IOrganizationEvent,
 } from '../interfaces/organization.interface';
 import { InjectedConstants } from '../../config/constants.config';
@@ -46,9 +47,9 @@ export class OrganizationService {
 		};
 
 		//create the new object
-		const organization = await this.organizationModel.create(
-			createOrganizationDao,
-		);
+		const organization = (
+			await this.organizationModel.create(createOrganizationDao)
+		).toObject();
 
 		//let's add the organization to the user who created it
 		await this.userModel
@@ -84,8 +85,9 @@ export class OrganizationService {
 	async findAll(user: IUserToken) {
 		const userDocument = await this.userModel
 			.findById(user._id)
+			.orFail()
 			.populate('organizations')
-			.orFail();
+			.lean();
 
 		return userDocument.organizations;
 	}
@@ -116,7 +118,7 @@ export class OrganizationService {
 			);
 		}
 
-		return organization;
+		return organization.toObject();
 	}
 
 	/**
@@ -134,7 +136,8 @@ export class OrganizationService {
 		user: IUserToken,
 	) {
 		//first let's lookup our org
-		const organization = await this.organizationModel
+		//Keep it as a document here for later updates
+		const organizationDoc = await this.organizationModel
 			.findOne({ _id: organizationId })
 			.orFail();
 
@@ -142,7 +145,7 @@ export class OrganizationService {
 		if (
 			!this.organizationPermissions.checkPermission(
 				Action.Update,
-				organization,
+				organizationDoc,
 				user,
 			)
 		) {
@@ -157,9 +160,9 @@ export class OrganizationService {
 
 		//run the query
 		//returns the old item by default
-		organization.set(updateOrganizationDao);
+		organizationDoc.set(updateOrganizationDao);
 
-		await organization.save();
+		const organization = (await organizationDoc.save()).toObject();
 
 		//emit our updated Org event event
 		const organizationUpdatedEvent: IOrganizationEvent = {
@@ -187,7 +190,8 @@ export class OrganizationService {
 	 */
 	async remove(organizationId: string, user: IUserToken) {
 		//first let's retrieve the specific org
-		const organization = await this.organizationModel
+		//keep as a document to modifylater
+		const organizationDoc = await this.organizationModel
 			.findById(organizationId)
 			.orFail();
 
@@ -195,7 +199,7 @@ export class OrganizationService {
 		if (
 			!this.organizationPermissions.checkPermission(
 				Action.Delete,
-				organization,
+				organizationDoc,
 				user,
 			)
 		) {
@@ -203,15 +207,20 @@ export class OrganizationService {
 		}
 
 		//now let's do business logic checking - we don't want to delete any orgs that still have projects associated with them
-		if (organization.projects.length > 0) {
+		if (organizationDoc.projects.length > 0) {
 			throw new ActionNotAllowedError(
 				'Error - Unable to delete an organization that still has active projects',
 			);
 		}
 
+		//let's delete the doc
+		const deletedOrg = await this.organizationModel
+			.deleteOne({ _id: organizationDoc._id })
+			.orFail();
+
 		//let's emit our event to delete the org
 		const organizationDeletedEvent: IOrganizationEvent = {
-			organization: organization,
+			organization: organizationDoc.toObject(),
 			user: user,
 		};
 
@@ -219,10 +228,9 @@ export class OrganizationService {
 
 		//log our deleted or
 		this.logger.log(
-			`Organization Deleted: user ${user._id} deleted organization ${organization._id}.`,
+			`Organization Deleted: user ${user._id} deleted organization ${organizationDoc._id}.`,
 		);
 
-		//if all good, let's remove this org entirely
-		return await organization.delete();
+		return organizationDoc.toObject();
 	}
 }

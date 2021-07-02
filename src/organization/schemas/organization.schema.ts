@@ -9,10 +9,13 @@ export const OrganizationSchema = new mongoose.Schema<IOrganization>(
 		users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 		projects: [String],
 		user_groups: [String],
-		updatedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-		createdBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+		updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 	},
 	{
 		timestamps: true,
+		toObject: {
+			versionKey: false,
+		},
 	},
 );

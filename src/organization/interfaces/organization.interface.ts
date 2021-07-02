@@ -1,7 +1,7 @@
-import { Document, Types } from 'mongoose';
+import { Date, Document, Types } from 'mongoose';
 import { IUserToken } from 'src/user/interfaces/user.interface';
 
-export interface IOrganization extends Document {
+export interface IOrganizationDocument extends Document {
 	name: string;
 	description?: string;
 	users: Array<Types.ObjectId>;
@@ -10,6 +10,20 @@ export interface IOrganization extends Document {
 	user_groups: Array<Types.ObjectId>;
 	updatedBy: Types.ObjectId;
 	createdBy: Types.ObjectId;
+}
+
+export interface IOrganization {
+	_id: Types.ObjectId;
+	name: string;
+	description?: string;
+	users: Array<Types.ObjectId>;
+	admins: Array<Types.ObjectId>;
+	projects: Array<Types.ObjectId>;
+	user_groups: Array<Types.ObjectId>;
+	updatedBy: Types.ObjectId;
+	createdBy: Types.ObjectId;
+	updatedAt: Date;
+	createdAt: Date;
 }
 
 //event payload when an org is created/modified

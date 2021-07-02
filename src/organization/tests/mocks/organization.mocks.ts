@@ -1,7 +1,10 @@
 import { Types } from 'mongoose';
-import { mockUserId, mockAdminId } from './users.mocks';
+import { IUserToken } from 'src/user/interfaces/user.interface';
 
-export const mockOrgId = Types.ObjectId();
+const mockOrgId = Types.ObjectId();
+const mockUserId = Types.ObjectId();
+const mockAdminId = Types.ObjectId();
+const mockNonAuthUserId = Types.ObjectId();
 
 export const mockOrganization = {
 	_id: mockOrgId,
@@ -9,4 +12,38 @@ export const mockOrganization = {
 	description: 'Mock organization for testing',
 	users: [mockUserId, mockAdminId],
 	admins: [mockAdminId],
+	projects: [Types.ObjectId()],
+};
+
+export const mockUserToken: IUserToken = {
+	_id: mockUserId,
+	email: 'test@test.com',
+	permissions: [],
+};
+
+export const mockUser = {
+	_id: mockUserId,
+	organizations: [mockOrgId],
+};
+
+export const mockAdminToken: IUserToken = {
+	_id: mockAdminId,
+	email: 'test@test.com',
+	permissions: [],
+};
+
+export const mockAdmin = {
+	_id: mockAdminId,
+	organizations: [mockOrgId],
+};
+
+export const mockNonAuthUserToken: IUserToken = {
+	_id: mockNonAuthUserId,
+	email: 'test@test.com',
+	permissions: [],
+};
+
+export const mockNonAuthUser = {
+	_id: mockNonAuthUserId,
+	organizations: [],
 };

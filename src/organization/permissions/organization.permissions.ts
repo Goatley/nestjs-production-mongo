@@ -1,22 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { Action } from '../../permissions/actions';
 import { IUserToken } from '../../user/interfaces/user.interface';
-import { IOrganization } from '../interfaces/organization.interface';
+import { IOrganizationDocument } from '../interfaces/organization.interface';
 
 @Injectable()
 export class OrganizationPermissions {
 	checkPermission(
 		action: Action,
-		organization: IOrganization,
+		organizationDoc: IOrganizationDocument,
 		user: IUserToken,
 	) {
 		//Admins have total control for all actions
-		if (organization.admins.includes(user._id)) return true;
+		if (organizationDoc.admins.includes(user._id)) return true;
 
 		switch (action) {
 			//users can read if they're listed as a user of that org
 			case Action.Read:
-				if (organization.users.includes(user._id)) return true;
+				if (organizationDoc.users.includes(user._id)) return true;
 				return false;
 				break;
 			//Anyone can create a new org

@@ -8,6 +8,9 @@ export class OrganizationEventListener {
 	constructor(private readonly logger: Logger) {}
 
 	// @OnEvent(OrganizationEvents.created)
+	// handleCreatedEvent() {
+	// 	console.log('heheheheh');
+	// }
 
 	// @onEvent(OrganizationEvents.updated)
 

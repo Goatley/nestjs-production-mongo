@@ -11,6 +11,7 @@ import { OrganizationPermissions } from '../permissions/organization.permissions
 import { Action } from '../../permissions/actions';
 import {
 	IOrganization,
+	IOrganizationDocument,
 	IOrganizationUserDeletedEvent,
 } from '../interfaces/organization.interface';
 import { InjectedConstants } from '../../config/constants.config';
