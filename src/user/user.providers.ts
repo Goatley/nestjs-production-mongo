@@ -1,5 +1,5 @@
 import { Connection } from 'mongoose';
-import { InjectedConstants } from 'src/config/constants.config';
+import { InjectedConstants } from '../config/constants.config';
 import { UserSchema } from './schemas/user.schema';
 
 export const userProviders = [

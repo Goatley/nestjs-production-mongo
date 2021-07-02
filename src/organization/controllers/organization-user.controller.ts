@@ -9,8 +9,7 @@ import {
 	UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
-import { OrganizationUserService } from '../services/organizationUser.service';
+import { OrganizationUserService } from '../services/organization-user.service';
 import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto';
 import {
 	ApiAcceptedResponse,
@@ -31,7 +30,7 @@ export class OrganizationUserController {
 	@Get()
 	@ApiOkResponse({ type: Object })
 	@ApiForbiddenResponse()
-	findAll(@Param('organizationId') organizationId: string, @Req() req: Request) {
+	findAll(@Param('organizationId') organizationId: string, @Req() req) {
 		return this.organizationUserService.findAll(organizationId, req['user']);
 	}
 
@@ -41,7 +40,7 @@ export class OrganizationUserController {
 	async update(
 		@Param('organizationId') organizationId: string,
 		@Body() updateOrganizationUsersDto: UpdateOrganizationUsersDto,
-		@Req() req: Request,
+		@Req() req,
 	) {
 		return await this.organizationUserService.update(
 			organizationId,
@@ -56,7 +55,7 @@ export class OrganizationUserController {
 	async remove(
 		@Param('organizationId') organizationId: string,
 		@Param('userIdToDelete') userIdToDelete: string,
-		@Req() req: Request,
+		@Req() req,
 	) {
 		return await this.organizationUserService.remove(
 			organizationId,

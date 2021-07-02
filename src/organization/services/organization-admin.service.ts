@@ -2,27 +2,27 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Model, Types } from 'mongoose';
 import { OrganizationEvents } from '../events/organization.events';
-import { IUser, IUserToken } from 'src/user/interfaces/user.interface';
+import { IUser, IUserToken } from '../..//user/interfaces/user.interface';
 import {
 	InsufficientPermissionError,
 	ActionNotAllowedError,
-} from 'src/errors/errors';
+} from '../../errors/errors';
 import { OrganizationPermissions } from '../permissions/organization.permissions';
-import { Action } from 'src/casl/actions';
+import { Action } from '../../permissions/actions';
 import {
 	IOrganization,
-	IOrganizationUserDeletedEvent,
+	IOrganizationAdminDeletedEvent,
 } from '../interfaces/organization.interface';
-import { InjectedConstants } from 'src/config/constants.config';
-import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto';
+import { InjectedConstants } from '../../config/constants.config';
+import { UpdateOrganizationAdminsDto } from '../dto/update-organization-admins.dto';
 
 /**
- * Service class for Organization User management
+ * Service class for Organization Admin management
  *
  */
 
 @Injectable()
-export class OrganizationUserService {
+export class OrganizationAdminService {
 	constructor(
 		@Inject(InjectedConstants.organization_model)
 		private organizationModel: Model<IOrganization>,
@@ -57,17 +57,17 @@ export class OrganizationUserService {
 		}
 
 		//let's populate our users to grab the emails/any other info
-		await organization.populate('users', '_id email').execPopulate();
+		await organization.populate('admins', '_id email').execPopulate();
 
 		//let's return the users and admins of the org
 		return {
 			_id: organization._id,
-			users: organization.users,
+			admins: organization.admins,
 		};
 	}
 
 	/**
-	 * Updates the user or admin list of an organization to ONLY ADD new users.
+	 * Updates the admin list of an organization to ONLY ADD new users.
 	 *
 	 * @param organizationId
 	 * @param UpdateOrganizationUsersDto
@@ -78,7 +78,7 @@ export class OrganizationUserService {
 	 */
 	async update(
 		organizationId: string,
-		updateOrganizationUsersDto: UpdateOrganizationUsersDto,
+		updateOrganizationAdminsDto: UpdateOrganizationAdminsDto,
 		user: IUserToken,
 	) {
 		//let's retrieve our org and make sure it exists
@@ -98,42 +98,45 @@ export class OrganizationUserService {
 		}
 
 		//let's build our update DAO
-		const updateOrgUsersDao = {
+		//we'll want to add the user to the org as both an admin and a user
+		const updateOrgAdminsDao = {
 			$addToSet: {
-				users: { $each: updateOrganizationUsersDto.users },
+				admins: { $each: updateOrganizationAdminsDto.admins },
+				users: { $each: updateOrganizationAdminsDto.admins },
 			},
 			updatedBy: user._id,
 		};
 
 		//let's use addToSet to push these new users or admins to our array
-		await organization.updateOne(updateOrgUsersDao, { new: true });
+		await organization.updateOne(updateOrgAdminsDao, { new: true });
 
-		//now let's add the org to each of the user's accounts
+		//now let's add the organization as an org to the users updated
+		//we don't care about order that these run in, just that they all finish.  We'll run them in parallel
 		await Promise.all(
-			updateOrganizationUsersDto.users.map((user) => {
-				return this.userModel.findByIdAndUpdate(user, {
+			updateOrganizationAdminsDto.admins.map((adminId) => {
+				return this.userModel.findByIdAndUpdate(adminId, {
 					$addToSet: { organizations: organization._id },
 				});
 			}),
 		);
 
-		//emit our updated users list event
-		updateOrganizationUsersDto.users.forEach((user) => {
+		//let's emit our admin updated events
+		updateOrganizationAdminsDto.admins.forEach((admin) => {
 			this.eventEmitter.emit(OrganizationEvents.updated, {
 				organization: organization,
 				user: user,
-				updatedUser: user,
+				updatedAdmin: admin,
 			});
 		});
 
 		return {
 			_id: organization._id,
-			users: organization.users,
+			admins: organization.admins,
 		};
 	}
 
 	/**
-	 * deletes a singler user based on user and organization passed into the route param
+	 * deletes a singular admin based on user and organization passed into the route param
 	 *
 	 * @param organizationId
 	 * @param userIdToDelete
@@ -144,7 +147,7 @@ export class OrganizationUserService {
 	 */
 	async remove(
 		organizationId: string,
-		userIdToDelete: string,
+		adminIdToDelete: string,
 		user: IUserToken,
 	) {
 		//first, let's grab our organization
@@ -163,10 +166,11 @@ export class OrganizationUserService {
 			throw new InsufficientPermissionError();
 		}
 
-		//check to see if the user is an admin - we don't want to be able to remove the user from 'users' if they are an 'admin'.  They must remove them as an admin first, then as a user
-		if (organization.admins.includes(Types.ObjectId(userIdToDelete))) {
+		//let's make sure we aren't removing the last admin.  Instead, they would need to delete the org.
+		//we only want to be able to remove 1 admin at a time - this will be a safety check for us
+		if (organization.admins.length === 1) {
 			throw new ActionNotAllowedError(
-				'You cannot remove a user that is also an admin of an organization.  Please remove them as an admin first.',
+				"Error - you can't remove the last admin from an organization.  Did you want to delete the organization instead?",
 			);
 		}
 
@@ -175,25 +179,18 @@ export class OrganizationUserService {
 			.updateOne({
 				updatedBy: user._id,
 				$pull: {
-					users: Types.ObjectId(userIdToDelete),
+					admins: Types.ObjectId(adminIdToDelete),
 				},
 			})
 			.orFail();
 
-		//now we need to remove the org from each of the users removed
-		await this.userModel
-			.findByIdAndUpdate(userIdToDelete, {
-				$pull: {
-					organizations: organization._id,
-				},
-			})
-			.orFail();
+		//since you can't remove a user that is still an admin, the user removal will come last.  Thus, we can ignore removing this org from the user document
 
 		//now let's emit our event to notify users/admins were removed
-		const orgUserDeletedEvt: IOrganizationUserDeletedEvent = {
+		const orgUserDeletedEvt: IOrganizationAdminDeletedEvent = {
 			organization: organization,
 			user: user,
-			deletedUser: userIdToDelete,
+			deletedAdmin: adminIdToDelete,
 		};
 
 		this.eventEmitter.emit(OrganizationEvents.userDeleted, orgUserDeletedEvt);
@@ -201,7 +198,7 @@ export class OrganizationUserService {
 		//FINALLY let's return the updated org
 		return {
 			_id: organization._id,
-			users: organization.users,
+			admins: organization.admins,
 		};
 	}
 }

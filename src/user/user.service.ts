@@ -3,7 +3,7 @@ import { Model, Types } from 'mongoose';
 import { IUser } from './interfaces/user.interface';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { InjectedConstants } from 'src/config/constants.config';
+import { InjectedConstants } from '../config/constants.config';
 
 @Injectable()
 export class UserService {

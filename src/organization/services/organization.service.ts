@@ -8,14 +8,14 @@ import { IUser, IUserToken } from 'src/user/interfaces/user.interface';
 import {
 	InsufficientPermissionError,
 	ActionNotAllowedError,
-} from 'src/errors/errors';
+} from '../../errors/errors';
 import { OrganizationPermissions } from '../permissions/organization.permissions';
-import { Action } from 'src/casl/actions';
+import { Action } from '../../permissions/actions';
 import {
 	IOrganization,
 	IOrganizationEvent,
 } from '../interfaces/organization.interface';
-import { InjectedConstants } from 'src/config/constants.config';
+import { InjectedConstants } from '../../config/constants.config';
 
 @Injectable()
 export class OrganizationService {

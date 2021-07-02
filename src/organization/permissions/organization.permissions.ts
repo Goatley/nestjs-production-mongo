@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Action } from 'src/casl/actions';
-import { IUserToken } from 'src/user/interfaces/user.interface';
+import { Action } from '../../permissions/actions';
+import { IUserToken } from '../../user/interfaces/user.interface';
 import { IOrganization } from '../interfaces/organization.interface';
 
 @Injectable()

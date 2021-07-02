@@ -1,5 +1,5 @@
 import * as mongoose from 'mongoose';
-import { InjectedConstants } from 'src/config/constants.config';
+import { InjectedConstants } from '../config/constants.config';
 
 export const databaseProviders = [
 	{

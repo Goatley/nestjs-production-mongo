@@ -1,6 +1,6 @@
 import { Connection } from 'mongoose';
 import { OrganizationSchema } from './schemas/organization.schema';
-import { InjectedConstants } from 'src/config/constants.config';
+import { InjectedConstants } from '../config/constants.config';
 
 export const organizationProviders = [
 	{
