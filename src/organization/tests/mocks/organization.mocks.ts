@@ -23,6 +23,7 @@ export const mockUserToken: IUserToken = {
 
 export const mockUser = {
 	_id: mockUserId,
+	email: 'test@test.com',
 	organizations: [mockOrgId],
 };
 
@@ -34,6 +35,7 @@ export const mockAdminToken: IUserToken = {
 
 export const mockAdmin = {
 	_id: mockAdminId,
+	email: 'test@test.com',
 	organizations: [mockOrgId],
 };
 
@@ -45,5 +47,18 @@ export const mockNonAuthUserToken: IUserToken = {
 
 export const mockNonAuthUser = {
 	_id: mockNonAuthUserId,
+	email: 'test@test.com',
+	organizations: [],
+};
+
+export const mockNonAuthUser2 = {
+	_id: Types.ObjectId(),
+	email: 'test@test.com',
+	organizations: [],
+};
+
+export const mockNonAuthUser3 = {
+	_id: Types.ObjectId(),
+	email: 'test@test.com',
 	organizations: [],
 };

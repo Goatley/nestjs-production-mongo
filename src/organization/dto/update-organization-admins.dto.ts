@@ -1,14 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
 import { IsObjectId } from 'class-validator-mongo-object-id';
 
 export class UpdateOrganizationAdminsDto {
-	@ApiProperty({ type: [String], isArray: true })
-	@IsArray()
+	@ApiProperty({ type: String })
 	@IsNotEmpty()
 	@IsObjectId({
 		each: true,
 		message: "User ID's must be valid instances of a User ID ObjectID",
 	})
-	admins: Array<string>;
+	adminId: string;
 }

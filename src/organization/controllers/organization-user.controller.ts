@@ -17,6 +17,7 @@ import {
 	ApiOkResponse,
 	ApiTags,
 } from '@nestjs/swagger';
+import { UserListDto } from '../dto/user-list.dto';
 
 //CONTROLLER FOR USER MANAGEMENT *WITHIN* ORGS
 @ApiTags('Organization')
@@ -28,14 +29,14 @@ export class OrganizationUserController {
 	) {}
 
 	@Get()
-	@ApiOkResponse({ type: Object })
+	@ApiOkResponse({ type: UserListDto })
 	@ApiForbiddenResponse()
 	findAll(@Param('organizationId') organizationId: string, @Req() req) {
 		return this.organizationUserService.findAll(organizationId, req['user']);
 	}
 
 	@Patch()
-	@ApiAcceptedResponse({ type: Object })
+	@ApiAcceptedResponse({ type: UserListDto })
 	@ApiForbiddenResponse()
 	async update(
 		@Param('organizationId') organizationId: string,
@@ -50,7 +51,7 @@ export class OrganizationUserController {
 	}
 
 	@Delete(':userIdToDelete')
-	@ApiAcceptedResponse({ type: Object })
+	@ApiAcceptedResponse()
 	@ApiForbiddenResponse()
 	async remove(
 		@Param('organizationId') organizationId: string,

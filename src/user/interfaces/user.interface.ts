@@ -1,14 +1,16 @@
-import * as mongoose from 'mongoose';
+import { Types, Document } from 'mongoose';
 
-export interface IUser extends mongoose.Document {
+export interface IUser {
+	_id: Types.ObjectId;
 	email: string;
-	organizations: Array<mongoose.Types.ObjectId>;
-	// projects: [{ type: mongoose.Types.ObjectId, ref: 'Project' }]
+	organizations: Array<Types.ObjectId>;
 	projects: Array<string>;
 }
 
+export type IUserDocument = IUser & Document;
+
 export interface IUserToken {
-	_id: mongoose.Types.ObjectId;
+	_id: Types.ObjectId;
 	email: string;
 	permissions: Array<string>;
 }

@@ -12,7 +12,6 @@ import {
 import { OrganizationPermissions } from '../permissions/organization.permissions';
 import { Action } from '../../permissions/actions';
 import {
-	IOrganization,
 	IOrganizationDocument,
 	IOrganizationEvent,
 } from '../interfaces/organization.interface';
@@ -22,7 +21,7 @@ import { InjectedConstants } from '../../config/constants.config';
 export class OrganizationService {
 	constructor(
 		@Inject(InjectedConstants.organization_model)
-		private organizationModel: Model<IOrganization>,
+		private organizationModel: Model<IOrganizationDocument>,
 		@Inject(InjectedConstants.user_model) private userModel: Model<IUser>,
 		private eventEmitter: EventEmitter2,
 		private organizationPermissions: OrganizationPermissions,
@@ -103,6 +102,7 @@ export class OrganizationService {
 		//throw document not found error first if no doc
 		const organization = await this.organizationModel
 			.findById(organizationId)
+			.lean()
 			.orFail();
 
 		//if good ,return
@@ -118,7 +118,7 @@ export class OrganizationService {
 			);
 		}
 
-		return organization.toObject();
+		return organization;
 	}
 
 	/**
@@ -137,15 +137,16 @@ export class OrganizationService {
 	) {
 		//first let's lookup our org
 		//Keep it as a document here for later updates
-		const organizationDoc = await this.organizationModel
+		const organization = await this.organizationModel
 			.findOne({ _id: organizationId })
+			.lean()
 			.orFail();
 
 		//reject if not an admin for this org
 		if (
 			!this.organizationPermissions.checkPermission(
 				Action.Update,
-				organizationDoc,
+				organization,
 				user,
 			)
 		) {
@@ -158,15 +159,21 @@ export class OrganizationService {
 			updatedBy: user._id,
 		};
 
-		//run the query
-		//returns the old item by default
-		organizationDoc.set(updateOrganizationDao);
-
-		const organization = (await organizationDoc.save()).toObject();
+		//run the query, retrieve the NEW item
+		const updatedOrg = await this.organizationModel
+			.findOneAndUpdate(
+				{ _id: organization._id },
+				{
+					$set: updateOrganizationDao,
+				},
+				{ new: true },
+			)
+			.lean()
+			.orFail();
 
 		//emit our updated Org event event
 		const organizationUpdatedEvent: IOrganizationEvent = {
-			organization: organization,
+			organization: updatedOrg,
 			user: user,
 		};
 
@@ -174,10 +181,10 @@ export class OrganizationService {
 
 		//log the updated org/action
 		this.logger.log(
-			`Organization updated: user ${user._id} updated organization ${organization._id}`,
+			`Organization updated: user ${user._id} updated organization ${updatedOrg._id}`,
 		);
 
-		return organization;
+		return updatedOrg;
 	}
 
 	/**
@@ -191,15 +198,16 @@ export class OrganizationService {
 	async remove(organizationId: string, user: IUserToken) {
 		//first let's retrieve the specific org
 		//keep as a document to modifylater
-		const organizationDoc = await this.organizationModel
+		const organization = await this.organizationModel
 			.findById(organizationId)
+			.lean()
 			.orFail();
 
 		//let's check to make sure the user is an admin of the org first
 		if (
 			!this.organizationPermissions.checkPermission(
 				Action.Delete,
-				organizationDoc,
+				organization,
 				user,
 			)
 		) {
@@ -207,20 +215,18 @@ export class OrganizationService {
 		}
 
 		//now let's do business logic checking - we don't want to delete any orgs that still have projects associated with them
-		if (organizationDoc.projects.length > 0) {
+		if (organization.projects.length > 0) {
 			throw new ActionNotAllowedError(
 				'Error - Unable to delete an organization that still has active projects',
 			);
 		}
 
 		//let's delete the doc
-		const deletedOrg = await this.organizationModel
-			.deleteOne({ _id: organizationDoc._id })
-			.orFail();
+		await this.organizationModel.deleteOne({ _id: organization._id }).orFail();
 
 		//let's emit our event to delete the org
 		const organizationDeletedEvent: IOrganizationEvent = {
-			organization: organizationDoc.toObject(),
+			organization: organization,
 			user: user,
 		};
 
@@ -228,9 +234,9 @@ export class OrganizationService {
 
 		//log our deleted or
 		this.logger.log(
-			`Organization Deleted: user ${user._id} deleted organization ${organizationDoc._id}.`,
+			`Organization Deleted: user ${user._id} deleted organization ${organization._id}.`,
 		);
 
-		return organizationDoc.toObject();
+		return organization;
 	}
 }

@@ -13,9 +13,12 @@ import {
 	IOrganization,
 	IOrganizationDocument,
 	IOrganizationUserDeletedEvent,
+	IOrganizationUserUpdatedEvent,
 } from '../interfaces/organization.interface';
 import { InjectedConstants } from '../../config/constants.config';
 import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto';
+import { UserListDto } from '../dto/user-list.dto';
+import { Populated } from 'src/util/populatedType.util';
 
 /**
  * Service class for Organization User management
@@ -26,7 +29,7 @@ import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto
 export class OrganizationUserService {
 	constructor(
 		@Inject(InjectedConstants.organization_model)
-		private organizationModel: Model<IOrganization>,
+		private organizationModel: Model<IOrganizationDocument>,
 		@Inject(InjectedConstants.user_model) private userModel: Model<IUser>,
 		private eventEmitter: EventEmitter2,
 		private organizationPermissions: OrganizationPermissions,
@@ -40,10 +43,11 @@ export class OrganizationUserService {
 	 * @permission - requires that the user supplied by the token be either an admin or a user of the organization
 	 * @returns Finds all users that belong to an organization and returns them.  Will return an object containing the admins array and the users array
 	 */
-	async findAll(organizationId: string, user: IUserToken) {
+	async findAll(organizationId: string, user: IUserToken): Promise<UserListDto> {
 		//first let's grab our doc
 		const organization = await this.organizationModel
 			.findById(organizationId)
+			.lean()
 			.orFail();
 
 		//now, let's verify if the user has permission to view.  Either an admin or user of the org needs READ
@@ -57,13 +61,16 @@ export class OrganizationUserService {
 			throw new InsufficientPermissionError();
 		}
 
-		//let's populate our users to grab the emails/any other info
-		await organization.populate('users', '_id email').execPopulate();
+		const populatedOrg = (await this.organizationModel
+			.findOne({ _id: organization._id })
+			.populate('users', '_id email')
+			.lean()
+			.orFail()) as Populated<IOrganization, 'users'>;
 
 		//let's return the users and admins of the org
 		return {
-			_id: organization._id,
-			users: organization.users,
+			_id: populatedOrg._id,
+			users: populatedOrg.users,
 		};
 	}
 
@@ -81,10 +88,11 @@ export class OrganizationUserService {
 		organizationId: string,
 		updateOrganizationUsersDto: UpdateOrganizationUsersDto,
 		user: IUserToken,
-	) {
+	): Promise<UserListDto> {
 		//let's retrieve our org and make sure it exists
 		const organization = await this.organizationModel
 			.findOne({ _id: organizationId })
+			.lean()
 			.orFail();
 
 		//check permissions - you MUST be an admin to update these lists
@@ -106,35 +114,49 @@ export class OrganizationUserService {
 			updatedBy: user._id,
 		};
 
-		//let's use addToSet to push these new users or admins to our array
-		await organization.updateOne(updateOrgUsersDao, { new: true });
+		//let's update our org and save the returned NEW copy
+		const updatedOrg = (await this.organizationModel
+			.findOneAndUpdate({ _id: organization._id }, updateOrgUsersDao, {
+				new: true,
+			})
+			.populate('users', '_id email')
+			.lean()
+			.orFail()) as Populated<IOrganization, 'users'>;
 
 		//now let's add the org to each of the user's accounts
-		await Promise.all(
-			updateOrganizationUsersDto.users.map((user) => {
-				return this.userModel.findByIdAndUpdate(user, {
-					$addToSet: { organizations: organization._id },
-				});
+		const newOrgUsers = await Promise.all(
+			updateOrganizationUsersDto.users.map((userId) => {
+				return this.userModel.findOneAndUpdate(
+					{ _id: userId },
+					{
+						$addToSet: { organizations: updatedOrg._id },
+					},
+					{
+						new: true,
+					},
+				);
 			}),
 		);
 
 		//emit our updated users list event
-		updateOrganizationUsersDto.users.forEach((user) => {
-			this.eventEmitter.emit(OrganizationEvents.updated, {
-				organization: organization,
+		newOrgUsers.forEach((updatedUser) => {
+			const orgUserUpdatedEvent: IOrganizationUserUpdatedEvent = {
+				organization: updatedOrg,
 				user: user,
-				updatedUser: user,
-			});
+				updatedUser: updatedUser,
+			};
+
+			this.eventEmitter.emit(OrganizationEvents.userUpdated, orgUserUpdatedEvent);
 		});
 
 		return {
-			_id: organization._id,
-			users: organization.users,
+			_id: updatedOrg._id,
+			users: updatedOrg.users,
 		};
 	}
 
 	/**
-	 * deletes a singler user based on user and organization passed into the route param
+	 * deletes a single user based on user and organization passed into the route param
 	 *
 	 * @param organizationId
 	 * @param userIdToDelete
@@ -147,11 +169,15 @@ export class OrganizationUserService {
 		organizationId: string,
 		userIdToDelete: string,
 		user: IUserToken,
-	) {
+	): Promise<UserListDto> {
 		//first, let's grab our organization
+		//keeping as a document for now
 		const organization = await this.organizationModel
 			.findById(organizationId)
 			.orFail();
+
+		//lets also make sure we can actually retrieve our user or throw an error if not
+		await this.userModel.findOne({ _id: userIdToDelete }).orFail();
 
 		//let's see if we have permission to remove the users (aka is an admin)
 		if (
@@ -165,6 +191,7 @@ export class OrganizationUserService {
 		}
 
 		//check to see if the user is an admin - we don't want to be able to remove the user from 'users' if they are an 'admin'.  They must remove them as an admin first, then as a user
+		//we don't ever have to worry about removing the last user, as that would be yourself, and you can't remove the last admin which would need to happen first
 		if (organization.admins.includes(Types.ObjectId(userIdToDelete))) {
 			throw new ActionNotAllowedError(
 				'You cannot remove a user that is also an admin of an organization.  Please remove them as an admin first.',
@@ -172,37 +199,44 @@ export class OrganizationUserService {
 		}
 
 		//lets run update query to remove the users or admin from the org
-		await organization
-			.updateOne({
-				updatedBy: user._id,
-				$pull: {
-					users: Types.ObjectId(userIdToDelete),
+		const updatedOrg = (await this.organizationModel
+			.findOneAndUpdate(
+				{ _id: organization._id },
+				{
+					updatedBy: user._id,
+					$pull: {
+						users: Types.ObjectId(userIdToDelete),
+					},
 				},
-			})
-			.orFail();
+				{ new: true },
+			)
+			.populate('users', '_id email')
+			.lean()
+			.orFail()) as Populated<IOrganizationDocument, 'users'>;
 
 		//now we need to remove the org from each of the users removed
-		await this.userModel
+		const deletedUser = await this.userModel
 			.findByIdAndUpdate(userIdToDelete, {
 				$pull: {
-					organizations: organization._id,
+					organizations: updatedOrg._id,
 				},
 			})
+			.lean()
 			.orFail();
 
 		//now let's emit our event to notify users/admins were removed
 		const orgUserDeletedEvt: IOrganizationUserDeletedEvent = {
-			organization: organization,
+			organization: updatedOrg,
 			user: user,
-			deletedUser: userIdToDelete,
+			deletedUser: deletedUser,
 		};
 
 		this.eventEmitter.emit(OrganizationEvents.userDeleted, orgUserDeletedEvt);
 
 		//FINALLY let's return the updated org
 		return {
-			_id: organization._id,
-			users: organization.users,
+			_id: updatedOrg._id,
+			users: updatedOrg.users,
 		};
 	}
 }
