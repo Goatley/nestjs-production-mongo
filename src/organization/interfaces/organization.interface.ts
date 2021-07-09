@@ -24,12 +24,16 @@ export interface IOrganizationEvent {
 }
 
 //payload for when organization user management happens
-export interface IOrganizationUserUpdatedEvent extends IOrganizationEvent {
-	updatedUser: IUser;
+export interface IOrganizationUserAddedEvent extends IOrganizationEvent {
+	addedUser: IUser;
 }
 
 export interface IOrganizationUserDeletedEvent extends IOrganizationEvent {
 	deletedUser: IUser;
+}
+
+export interface IOrganizationUserCreatedEvent extends IOrganizationEvent {
+	createdUser: IUser;
 }
 
 //payload for when organization admin management happens

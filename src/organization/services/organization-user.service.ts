@@ -12,13 +12,14 @@ import { Action } from '../../permissions/actions';
 import {
 	IOrganization,
 	IOrganizationDocument,
+	IOrganizationUserAddedEvent,
+	IOrganizationUserCreatedEvent,
 	IOrganizationUserDeletedEvent,
-	IOrganizationUserUpdatedEvent,
 } from '../interfaces/organization.interface';
 import { InjectedConstants } from '../../config/constants.config';
-import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto';
 import { UserListDto } from '../dto/user-list.dto';
 import { Populated } from 'src/util/populatedType.util';
+import { CreateOrganizationUserDto } from '../dto/create-organization-user.dto';
 
 /**
  * Service class for Organization User management
@@ -74,85 +75,115 @@ export class OrganizationUserService {
 		};
 	}
 
-	/**
-	 * Updates the user or admin list of an organization to ONLY ADD new users.
-	 *
-	 * @param organizationId
-	 * @param UpdateOrganizationUsersDto
-	 * @param user
-	 * @event releases org users updated event
-	 * @permission requires admin access to the organization
-	 * @returns returns the updated users/admins list on the named org
-	 */
-	async update(
+	async create(
 		organizationId: string,
-		updateOrganizationUsersDto: UpdateOrganizationUsersDto,
+		createOrganizationUserDto: CreateOrganizationUserDto,
 		user: IUserToken,
-	): Promise<UserListDto> {
-		//let's retrieve our org and make sure it exists
+	): Promise<IUser> {
+		//first, let's do a permissions check
 		const organization = await this.organizationModel
 			.findOne({ _id: organizationId })
 			.lean()
 			.orFail();
 
-		//check permissions - you MUST be an admin to update these lists
 		if (
 			!this.organizationPermissions.checkPermission(
-				Action.Update,
+				Action.Manage,
 				organization,
 				user,
 			)
 		) {
-			throw new InsufficientPermissionError();
+			throw new InsufficientPermissionError(
+				'You have insufficient permissions to add users to this organization.  You must be an admin.',
+			);
 		}
 
-		//let's build our update DAO
-		const updateOrgUsersDao = {
-			$addToSet: {
-				users: { $each: updateOrganizationUsersDto.users },
-			},
-			updatedBy: user._id,
-		};
-
-		//let's update our org and save the returned NEW copy
-		const updatedOrg = (await this.organizationModel
-			.findOneAndUpdate({ _id: organization._id }, updateOrgUsersDao, {
-				new: true,
-			})
-			.populate('users', '_id email')
-			.lean()
-			.orFail()) as Populated<IOrganization, 'users'>;
-
-		//now let's add the org to each of the user's accounts
-		const newOrgUsers = await Promise.all(
-			updateOrganizationUsersDto.users.map((userId) => {
-				return this.userModel.findOneAndUpdate(
-					{ _id: userId },
-					{
-						$addToSet: { organizations: updatedOrg._id },
-					},
-					{
-						new: true,
-					},
-				);
-			}),
-		);
-
-		//emit our updated users list event
-		newOrgUsers.forEach((updatedUser) => {
-			const orgUserUpdatedEvent: IOrganizationUserUpdatedEvent = {
-				organization: updatedOrg,
-				user: user,
-				updatedUser: updatedUser,
-			};
-
-			this.eventEmitter.emit(OrganizationEvents.userUpdated, orgUserUpdatedEvent);
+		//first, let's see if we have a user already registered to that email
+		let newUser = await this.userModel.findOne({
+			email: createOrganizationUserDto.userEmail,
 		});
 
-		return {
-			_id: updatedOrg._id,
-			users: updatedOrg.users,
-		};
+		//if not, let's create one
+		if (!newUser) {
+			//create the new user and add the organization to it
+			newUser = await this.userModel.create({
+				email: createOrganizationUserDto.userEmail,
+				organizations: [organization._id],
+			});
+
+			//now let's make sure the user is a part of the organization
+			const updatedOrg = await this.organizationModel
+				.findOneAndUpdate(
+					{ _id: organization._id },
+					{
+						$addToSet: { users: newUser._id },
+					},
+					{ new: true },
+				)
+				.lean();
+
+			//now, let's kick off the event for a new user created for this org
+			const orgUserCreatedEvent: IOrganizationUserCreatedEvent = {
+				organization: updatedOrg,
+				user: user,
+				createdUser: newUser,
+			};
+
+			this.eventEmitter.emit(OrganizationEvents.userCreated, orgUserCreatedEvent);
+
+			this.logger.log(
+				`New user ${newUser._id.toHexString()} was created and added to organization ${updatedOrg._id.toHexString()}`,
+			);
+
+			return newUser;
+		} else {
+			//if the user existed, let's make sure they don't already exist in the org
+			if (
+				organization.users.some(
+					(userId) => userId.toHexString() === newUser._id.toHexString(),
+				)
+			) {
+				throw new ActionNotAllowedError(
+					'Unable to add this user as they are already a part of this organization.',
+				);
+			}
+			//let's just add them to the org and send out an org user added event
+
+			//first, add the org to the user
+			const updatedUser = await this.userModel
+				.findOneAndUpdate(
+					{ _id: newUser._id },
+					{ $addToSet: { organizations: organization._id } },
+					{ new: true },
+				)
+				.lean();
+
+			//now, let's add the user to the org
+			const updatedOrg = await this.organizationModel
+				.findOneAndUpdate(
+					{ _id: organization._id },
+					{
+						$addToSet: { users: updatedUser._id },
+					},
+					{ new: true },
+				)
+				.lean();
+
+			//now send out the event for a user added
+			const orgUserAddedEvent: IOrganizationUserAddedEvent = {
+				organization: updatedOrg,
+				user: user,
+				addedUser: updatedUser,
+			};
+
+			this.eventEmitter.emit(OrganizationEvents.userAdded, orgUserAddedEvent);
+
+			this.logger.log(
+				`Existing user ${updatedUser._id.toHexString()} added to organization ${organization._id.toHexString()}`,
+			);
+
+			return updatedUser;
+		}
 	}
 
 	/**

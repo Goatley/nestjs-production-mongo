@@ -9,7 +9,7 @@ import {
 	mockNonAuthUserToken,
 } from '../mocks/organization.mocks';
 
-describe('The OrganizationController ', () => {
+describe('The OrganizationUserController ', () => {
 	//test each of our controllers
 	let controller: OrganizationUserController;
 
@@ -56,35 +56,35 @@ describe('The OrganizationController ', () => {
 		});
 	});
 
-	//receiving a PATCH
-	describe('Receiving a PATCH request on organization/:organizationId/users', () => {
+	//receiving a POST
+	describe('Receiving a POST request on organization/:organizationId/users', () => {
 		describe('With an authorized JWT', () => {
-			it('Should call update on the OrganizationUser Service.', async () => {
-				const updateSpy = jest.spyOn(spyService, 'update');
+			it('Should call create on the OrganizationUser Service.', async () => {
+				const createSpy = jest.spyOn(spyService, 'create');
 
-				await controller.update(
+				await controller.create(
 					mockOrganization._id.toHexString(),
-					{ users: [mockUserToken._id.toHexString()] },
+					{ userEmail: mockUserToken.email },
 					{
 						user: mockUserToken,
 					},
 				);
-				await controller.update(
+				await controller.create(
 					mockOrganization._id.toHexString(),
-					{ users: [mockUserToken._id.toHexString()] },
+					{ userEmail: mockUserToken.email },
 					{
 						user: mockAdminToken,
 					},
 				);
-				await controller.update(
+				await controller.create(
 					mockOrganization._id.toHexString(),
-					{ users: [mockUserToken._id.toHexString()] },
+					{ userEmail: mockUserToken.email },
 					{
 						user: mockNonAuthUserToken,
 					},
 				);
 
-				expect(updateSpy).toBeCalledTimes(3);
+				expect(createSpy).toBeCalledTimes(3);
 			});
 		});
 	});

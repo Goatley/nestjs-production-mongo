@@ -21,7 +21,7 @@ export class OrganizationUserServiceStub {
 	public async findAll(): Promise<void> {
 		return;
 	}
-	public async update(): Promise<void> {
+	public async create(): Promise<void> {
 		return;
 	}
 	public async remove(): Promise<void> {

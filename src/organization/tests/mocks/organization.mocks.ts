@@ -41,13 +41,13 @@ export const mockAdmin = {
 
 export const mockNonAuthUserToken: IUserToken = {
 	_id: mockNonAuthUserId,
-	email: 'test@test.com',
+	email: 'nonAuth@test.com',
 	permissions: [],
 };
 
 export const mockNonAuthUser = {
 	_id: mockNonAuthUserId,
-	email: 'test@test.com',
+	email: 'nonAuth@test.com',
 	organizations: [],
 };
 

@@ -9,7 +9,8 @@ import { OrganizationAdminController } from './controllers/organization-admin.co
 import { organizationProviders } from './organization.providers';
 import { UserModule } from 'src/user/user.module';
 import { OrganizationPermissions } from './permissions/organization.permissions';
-import { OrganizationEventListener } from './subscribers/organization-created.subscriber';
+import { OrganizationEventSubscriber } from './subscribers/organization.subscriber';
+import { OrganizationUserEventSubscriber } from './subscribers/organization-user.subscriber';
 
 @Module({
 	imports: [DatabaseModule, UserModule],
@@ -24,7 +25,8 @@ import { OrganizationEventListener } from './subscribers/organization-created.su
 		OrganizationUserService,
 		OrganizationAdminService,
 		OrganizationPermissions,
-		OrganizationEventListener,
+		OrganizationEventSubscriber,
+		OrganizationUserEventSubscriber,
 		...organizationProviders,
 	],
 	exports: [...organizationProviders],

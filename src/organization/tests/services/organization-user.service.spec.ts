@@ -120,161 +120,114 @@ describe('OrganizationUserService', () => {
 		});
 	});
 
-	describe('When calling Update on OrganizationUser service ', () => {
-		describe('With an organizationId that doesn"t exist', () => {
-			it('Should throw a DocumentNotFoundError', async () => {
-				await expect(
-					orgUserService.update(
-						Types.ObjectId().toHexString(), //random ID,
-						{ users: [mockNonAuthUserToken._id.toHexString()] },
-						mockAdminToken,
-					),
-				).rejects.toThrow(mongooseError.DocumentNotFoundError);
-			});
-		});
-
-		describe('With a non-authenticated user', () => {
+	describe('When calling create on OrganizationUser Service', () => {
+		describe('When calling with a non-authenticated user', () => {
 			it('Should reject with an InsufficientPermissionsError', async () => {
 				await expect(
-					orgUserService.update(
+					orgUserService.create(
 						mockOrganization._id.toHexString(),
-						{ users: [mockUserToken._id.toHexString()] },
+						{ userEmail: 'test@test.com' },
 						mockNonAuthUserToken,
 					),
 				).rejects.toThrow(InsufficientPermissionError);
 			});
 		});
 
-		describe('With an authenticated User but NOT admin', () => {
-			it('Should reject with an InsufficientPermissionsError', async () => {
+		describe('When calling with an authed user but non-admin', () => {
+			it('Should reject with an InsufficientPermissinosError', async () => {
 				await expect(
-					orgUserService.update(
+					orgUserService.create(
 						mockOrganization._id.toHexString(),
-						{ users: [mockNonAuthUserToken._id.toHexString()] },
+						{ userEmail: 'test@test.com' },
 						mockUserToken,
 					),
 				).rejects.toThrow(InsufficientPermissionError);
 			});
 		});
 
-		describe('With an authenticated ADMIN', () => {
-			describe('With a single user being added', () => {
-				it('Should update the organization with the new user, send out an OrganizationUserUpdated event, and add the organization to the added user"s organizations', async () => {
+		describe('When calling with an ADMIN of the organization', () => {
+			describe('On an existing user', () => {
+				it('Should add the organization to the users organization list, add the user to the organization, and send off the organizationUserAdded event', async () => {
 					expect.assertions(3);
 
-					//listen for the updated event
-					//there may be multiple, as a new event is sent for each user
-					//here there will only be one as we're just adding one new user
-					orgEmitter.on(OrganizationEvents.userUpdated, (payload) => {
+					//setup event listener
+					orgEmitter.on(OrganizationEvents.userAdded, (payload) => {
 						expect(payload).toEqual(
 							expect.objectContaining({
 								organization: expect.objectContaining({ _id: mockOrganization._id }),
 								user: expect.objectContaining({ _id: mockAdminToken._id }),
-								updatedUser: expect.objectContaining({ _id: mockNonAuthUserToken._id }),
+								addedUser: expect.objectContaining({
+									_id: mockNonAuthUser._id,
+									organizations: expect.arrayContaining([mockOrganization._id]),
+								}),
 							}),
 						);
 					});
 
-					const result = await orgUserService.update(
+					const result = await orgUserService.create(
 						mockOrganization._id.toHexString(),
-						{ users: [mockNonAuthUserToken._id.toHexString()] },
+						{ userEmail: 'nonAuth@test.com' },
 						mockAdminToken,
 					);
 
+					//get the user back, make sure teh org is a part of their organizations
 					expect(result).toEqual(
 						expect.objectContaining({
-							_id: mockOrganization._id,
-							users: expect.arrayContaining([
-								expect.objectContaining({
-									_id: mockAdminToken._id,
-									email: mockAdminToken.email,
-								}),
-								expect.objectContaining({
-									_id: mockNonAuthUserToken._id,
-									email: mockNonAuthUserToken.email,
-								}),
-							]),
+							_id: mockNonAuthUser._id,
+							organizations: expect.arrayContaining([mockOrganization._id]),
 						}),
 					);
 
-					//now let's make sure the org was added to our updated user's org list
-					const updatedUser = await userModel.findOne({
-						_id: mockNonAuthUserToken._id,
-					});
-
-					expect(updatedUser).toEqual(
+					//make sure the user is in the org list too
+					await expect(
+						orgModel.findOne({ _id: mockOrganization._id }),
+					).resolves.toEqual(
 						expect.objectContaining({
-							organizations: expect.arrayContaining([mockOrganization._id]),
+							_id: mockOrganization._id,
+							users: expect.arrayContaining([mockNonAuthUser._id]),
 						}),
 					);
 				});
 			});
 
-			describe('With multiple users being added', () => {
-				it('Should do stuff', async () => {
-					expect.assertions(5);
+			describe('On a completely new user (by email)', () => {
+				it('Should create the user, add the user to the org, add the org to the user, and send out an organizationUserCreated event', async () => {
+					expect.assertions(3);
 
-					//helper function for THIS TEST ONLY to determine which ID to test against for new users added
-					const determineTestID = (payload) => {
-						if (
-							payload.updatedUser._id.toHexString() ===
-							mockNonAuthUser2._id.toHexString()
-						) {
-							return mockNonAuthUser2._id;
-						} else {
-							return mockNonAuthUser3._id;
-						}
-					};
-
-					//setup orgEmitter listener for events
-					orgEmitter.on(OrganizationEvents.userUpdated, (payload) => {
+					orgEmitter.on(OrganizationEvents.userCreated, (payload) => {
 						expect(payload).toEqual(
 							expect.objectContaining({
 								organization: expect.objectContaining({ _id: mockOrganization._id }),
-								user: expect.objectContaining({ _id: mockAdmin._id }),
-								updatedUser: expect.objectContaining({
-									_id: determineTestID(payload),
+								user: expect.objectContaining({ _id: mockAdminToken._id }),
+								createdUser: expect.objectContaining({
+									email: 'newUser@test.com',
+									organizations: expect.arrayContaining([mockOrganization._id]),
 								}),
 							}),
 						);
 					});
 
-					const result = await orgUserService.update(
+					const result = await orgUserService.create(
 						mockOrganization._id.toHexString(),
-						{
-							users: [
-								mockNonAuthUser2._id.toHexString(),
-								mockNonAuthUser3._id.toHexString(),
-							],
-						},
+						{ userEmail: 'newUser@test.com' },
 						mockAdminToken,
 					);
 
+					//expect the user to be created and sent back with that org as an org
 					expect(result).toEqual(
 						expect.objectContaining({
+							email: 'newUser@test.com',
+							organizations: expect.arrayContaining([mockOrganization._id]),
+						}),
+					);
+
+					//expect the mock org to have this user now
+					await expect(
+						orgModel.findOne({ _id: mockOrganization._id }),
+					).resolves.toEqual(
+						expect.objectContaining({
 							_id: mockOrganization._id,
-							users: expect.arrayContaining([
-								expect.objectContaining({ _id: mockNonAuthUser2._id }),
-								expect.objectContaining({ _id: mockNonAuthUser3._id }),
-							]),
-						}),
-					);
-
-					//now let's check each user to make sure they both have the added organizations
-					await expect(
-						userModel.findOne({ _id: mockNonAuthUser2._id }),
-					).resolves.toEqual(
-						expect.objectContaining({
-							organizations: expect.arrayContaining([mockOrganization._id]),
-						}),
-					);
-
-					//check for second added user
-					await expect(
-						userModel.findOne({ _id: mockNonAuthUser3._id }),
-					).resolves.toEqual(
-						expect.objectContaining({
-							organizations: expect.arrayContaining([mockOrganization._id]),
+							users: expect.arrayContaining([result._id]),
 						}),
 					);
 				});

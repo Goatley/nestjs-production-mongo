@@ -4,6 +4,7 @@ export enum OrganizationEvents {
 	deleted = 'organization.deleted',
 	userDeleted = 'organization.user.deleted',
 	adminDeleted = 'organization.admin.deleted',
-	userUpdated = 'organization.user.updated',
+	userAdded = 'organization.user.updated',
+	userCreated = 'organization.user.created',
 	adminUpdated = 'organization.admin.updated',
 }

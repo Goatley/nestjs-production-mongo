@@ -2,15 +2,14 @@ import {
 	Controller,
 	Get,
 	Body,
-	Patch,
 	Param,
 	Delete,
 	Req,
 	UseGuards,
+	Post,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrganizationUserService } from '../services/organization-user.service';
-import { UpdateOrganizationUsersDto } from '../dto/update-organization-users.dto';
 import {
 	ApiAcceptedResponse,
 	ApiForbiddenResponse,
@@ -18,6 +17,7 @@ import {
 	ApiTags,
 } from '@nestjs/swagger';
 import { UserListDto } from '../dto/user-list.dto';
+import { CreateOrganizationUserDto } from '../dto/create-organization-user.dto';
 
 //CONTROLLER FOR USER MANAGEMENT *WITHIN* ORGS
 @ApiTags('Organization')
@@ -35,17 +35,17 @@ export class OrganizationUserController {
 		return this.organizationUserService.findAll(organizationId, req['user']);
 	}
 
-	@Patch()
+	@Post()
 	@ApiAcceptedResponse({ type: UserListDto })
 	@ApiForbiddenResponse()
-	async update(
+	async create(
 		@Param('organizationId') organizationId: string,
-		@Body() updateOrganizationUsersDto: UpdateOrganizationUsersDto,
+		@Body() createOrganizationUserDto: CreateOrganizationUserDto,
 		@Req() req,
 	) {
-		return await this.organizationUserService.update(
+		return await this.organizationUserService.create(
 			organizationId,
-			updateOrganizationUsersDto,
+			createOrganizationUserDto,
 			req['user'],
 		);
 	}
